@@ -15,11 +15,6 @@
         where T: class
     {
         /// <summary>
-        /// Default value factory
-        /// </summary>
-        private static readonly Func<T, HttpClient> DefaultValueFactory = x => new HttpClient();
-
-        /// <summary>
         /// Has the object been disposed
         /// </summary>
         private bool disposed = false;
@@ -34,15 +29,12 @@
         /// The singleton instance
         /// </summary>
         /// <typeparam name="T">Type used for http client lookup</typeparam>
-        /// <returns></returns>
         public static readonly HttpClientManager<T> Instance = new HttpClientManager<T>();
 
         /// <summary>
         /// Protected constructor
         /// </summary>
-        protected HttpClientManager()
-        {
-        }
+        protected HttpClientManager() {}
 
         /// <summary>
         /// Get a client based off a key of type T
@@ -50,18 +42,32 @@
         /// <param name="key">the key to reuse</param>
         /// <param name="valueFactor">factory method to initialize an HttpClient</param>
         /// <returns>An HttpClient</returns>
-        public HttpClient GetClient(T key, Func<T, HttpClient> valueFactory = null)
+        public HttpClient GetClient(T key, Func<T, HttpClient> clientFactory)
         {
             if (key == null)
             {
                 throw new ArgumentNullException("key");
             }
 
-            // If valueFactory is not specified, use the default one which creates a default HttpClient w/o special initialization
-            valueFactory = valueFactory ?? HttpClientManager<T>.DefaultValueFactory;
+            if (clientFactory == null)
+            {
+                throw new ArgumentNullException("clientFactory");
+            }
 
             // Thread safe GetOrAdd
-            return this.clients.GetOrAdd(key, valueFactory);
+            return this.clients.GetOrAdd(key, clientFactory);
+        }
+
+        /// <summary>
+        /// Remove a client based on the client key
+        /// </summary>
+        /// <param name="key">client key</param>
+        /// <returns>true if key exists</returns>
+        public bool RemoveClient(T key)
+        {
+            HttpClient client;
+            var ret = this.clients.TryRemove(key, out client);
+            return ret;
         }
 
         #region IDisposable
