@@ -60,6 +60,28 @@ namespace EffectiveHttpClientTest
         }
 
         [TestMethod]
+        public async Task TestHostChangeNotAllowed()
+        {
+            // Call the client with a different host ends up with exception
+            await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () => {
+                var google = new Uri("https://google.com");
+                using (var googleClient = new EffectiveHttpClient(google))
+                {
+                    await googleClient.GetStringAsync("https://bing.com");
+                }
+            });
+
+            // Call the client with a different scheme ends up with exception
+            await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () => {
+                var google = new Uri("https://google.com");
+                using (var googleClient = new EffectiveHttpClient(google))
+                {
+                    await googleClient.GetStringAsync("http://google.com");
+                }
+            });
+        }
+
+        [TestMethod]
         public async Task TestRealSimpleGet()
         {
             // Simple usage (default client build strategy)

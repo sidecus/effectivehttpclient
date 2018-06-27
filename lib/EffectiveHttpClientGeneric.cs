@@ -68,7 +68,7 @@ namespace EffectiveHttpClient
 
             this.VerifyUriAgainstBaseAddress(new Uri(url));
 
-            return await this.client.GetStringAsync(url);
+            return await this.client.GetStringAsync(url).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -91,7 +91,7 @@ namespace EffectiveHttpClient
 
             this.VerifyUriAgainstBaseAddress(new Uri(url));
 
-            return await this.client.PostAsync(url, content);
+            return await this.client.PostAsync(url, content).ConfigureAwait(false);
         }
 
         /// <summary>
