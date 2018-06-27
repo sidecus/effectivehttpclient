@@ -25,8 +25,8 @@ namespace EffectiveHttpClientTest
         [TestMethod]
         public void TestKeyAndClientBehavior()
         {
-            var uri = new Uri("https://bing.com");
-            var uri2 = new Uri("https://bing.com:443/api");
+            var uri = new Uri("HTTPS://bing.com");
+            var uri2 = new Uri("https://bINg.com:443/api");
             var uri3 = new Uri("http://bing.com:443/api/test");
             var client1 = new ProxyClass(uri);
             var client2 = new ProxyClass(uri2);
@@ -42,7 +42,7 @@ namespace EffectiveHttpClientTest
         }
 
         [TestMethod]
-        public void EnsureHttpClientNotDisposedWhenDisposeCalled()
+        public void TestHttpClientNotDisposedWhenDisposeCalled()
         {
             var baseAddress = "http://google.com";
 
@@ -58,26 +58,43 @@ namespace EffectiveHttpClientTest
             client.Dispose();
             httpClientMock.Protected().Verify("Dispose", Times.Never(), It.IsAny<bool>());
         }
-        
+
         [TestMethod]
-        public async Task TestGoogleGet()
+        public async Task TestRealSimpleGet()
         {
+            // Simple usage (default client build strategy)
             var google = new Uri("https://google.com");
-            var buildStrategy =
-                new ClientBuildStrategy(google)
+            using (var googleClient = new EffectiveHttpClient(google))
+            {
+                var result = await googleClient.GetStringAsync("https://google.com");
+                Assert.IsFalse(string.IsNullOrWhiteSpace(result));
+            }
+        }
+
+        [TestMethod]
+        public async Task TestRealComplexPost()
+        {
+            // More complex usage with http post
+            var httpbin = new Uri("http://httpbin.org");
+            var buildStrategy = new ClientBuildStrategy(httpbin)
                 .UseDefaultHeaders(x => 
                 {
-                    // Set common stuff which doesn't change from request to request
-                    x.CacheControl = new CacheControlHeaderValue()
-                    {
-                        NoCache = true,
-                    };
                     x.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 });
 
-            var googleClient = new EffectiveHttpClient(buildStrategy);
-            var result = await googleClient.GetStringAsync("/");
-            Assert.IsFalse(string.IsNullOrWhiteSpace(result));
+            // Using is not needed, but you can still use it without having to worry about anything
+            using (var httpbinClient = new EffectiveHttpClient(buildStrategy))
+            {
+                var payload = "testdata";
+                var content = new StringContent(payload, Encoding.UTF8);
+                using(var response = await httpbinClient.PostAsync("http://httpbin.org/post", content))
+                {
+                    Assert.IsTrue(response.IsSuccessStatusCode);
+
+                    var result = await response.Content.ReadAsStringAsync();
+                    Assert.IsTrue(result.Contains("testdata"));
+                }
+            }
         }
     }
 }
