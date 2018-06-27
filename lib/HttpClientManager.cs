@@ -11,6 +11,7 @@
     /// while making it easier to manager.
     /// This is a singleton based on type parameter T.
     /// </summary>
+    /// TODO: capacity & MUFO/FIFO strategy?
     public class HttpClientManager<T> : IDisposable
         where T: class
     {
@@ -42,7 +43,7 @@
         /// <param name="key">the key to reuse</param>
         /// <param name="valueFactor">factory method to initialize an HttpClient</param>
         /// <returns>An HttpClient</returns>
-        public HttpClient GetClient(T key, Func<T, HttpClient> clientFactory)
+        public HttpClient GetClient(T key, Func<HttpClient> clientFactory)
         {
             if (key == null)
             {
@@ -55,19 +56,19 @@
             }
 
             // Thread safe GetOrAdd
-            return this.clients.GetOrAdd(key, clientFactory);
+            return this.clients.GetOrAdd(key, x => clientFactory());
         }
 
         /// <summary>
-        /// Remove a client based on the client key
+        /// Remove a client based on the client key. Caller is in charge of disposing the client!
         /// </summary>
         /// <param name="key">client key</param>
-        /// <returns>true if key exists</returns>
-        public bool RemoveClient(T key)
+        /// <returns>client if exists, otherwise null</returns>
+        public HttpClient RemoveClient(T key)
         {
             HttpClient client;
             var ret = this.clients.TryRemove(key, out client);
-            return ret;
+            return ret ? client : null;
         }
 
         #region IDisposable

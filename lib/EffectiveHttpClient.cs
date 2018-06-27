@@ -5,17 +5,12 @@ namespace EffectiveHttpClient
     using System.Threading.Tasks;
 
     /// <summary>
-    /// EffectiveHttpClient which advocates sharing HttpClient for the same type of connection
+    /// Generic EffectiveHttpClient which advocates sharing HttpClient for the same type of connection
     /// </summary>
     /// <typeparam name="T">Type used to identify "same type of connection"</typeparam>
     public class EffectiveHttpClient<T> : IDisposable
         where T : class
     {
-        /// <summary>
-        /// Default value factory
-        /// </summary>
-        private static readonly Func<T, HttpClient> DefaultClientFactory = x => new HttpClient();
-
         /// <summary>
         /// Http client
         /// </summary>
@@ -35,22 +30,29 @@ namespace EffectiveHttpClient
         /// Creates a new instance of EffectiveHttpClient
         /// <param name="clientFactory">factory method to initialize the client</param>
         /// </summary>
-        public EffectiveHttpClient(T key, Func<T, HttpClient> clientFactory = null)
+        public EffectiveHttpClient(T key, ClientBuildStrategy strategy)
         {
             if (key == null)
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             }
 
-            // If valueFactory is not specified, use the default one which creates a default HttpClient w/o special initialization
-            clientFactory = clientFactory ?? EffectiveHttpClient<T>.DefaultClientFactory;
+            if (strategy == null)
+            {
+                throw new ArgumentNullException(nameof(strategy));
+            }
 
             this.ClientKey = key;
             this.manager = HttpClientManager<T>.Instance;
-            this.client = this.manager.GetClient(key, clientFactory);
+            this.client = this.manager.GetClient(key, strategy.Build);
         }
 
-        #region HttpClient proxy methods
+        #region HttpClient proxy properties and methods
+
+        /// <summary>
+        /// Gets the base address
+        /// </summary>
+        public Uri BaseAddress => this.client.BaseAddress;
 
         /// <summary>
         /// Get a string from a specified url
@@ -76,5 +78,46 @@ namespace EffectiveHttpClient
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Specialized EffectiveHttpClient which uses base address as the key
+    /// </summary>
+    /// <typeparam name="string"></typeparam>
+    public class EffectiveHttpClient : EffectiveHttpClient<string>
+    {
+        /// <summary>
+        /// Normalize a uri to a schema+domain+port key
+        /// </summary>
+        /// <param name="uri">uri</param>
+        /// <returns>string key which can be used to identify unique host</returns>
+        private static string UriToKey(Uri uri)
+        {
+            if (uri == null)
+            {
+                throw new ArgumentNullException(nameof(uri));
+            }
+
+            // Normalize the schema, domain and port part so that we can ues it as key
+            return $"{uri.Scheme}://{uri.Host.ToLowerInvariant()}:{uri.Port}";
+        }
+
+        /// <summary>
+        /// Initializes a new EffectiveHttpClient with the base address, with no special client initialization
+        /// </summary>
+        /// <param name="baseAddress">base address</param>
+        public EffectiveHttpClient(Uri baseAddress)
+            : base(EffectiveHttpClient.UriToKey(baseAddress), new ClientBuildStrategy(baseAddress))
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new EffectiveHttpClient with a client build strategy
+        /// </summary>
+        /// <param name="strategy">client build strategy</param>
+        public EffectiveHttpClient(ClientBuildStrategy strategy)
+            : base(EffectiveHttpClient.UriToKey(strategy.BaseAddress), strategy)
+        {
+        }
     }
 }
