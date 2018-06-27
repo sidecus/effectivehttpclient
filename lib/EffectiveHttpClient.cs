@@ -1,80 +1,45 @@
 namespace EffectiveHttpClient
 {
     using System;
-    using System.Net.Http;
-    using System.Threading.Tasks;
 
     /// <summary>
-    /// EffectiveHttpClient which advocates sharing HttpClient for the same type of connection
+    /// Specialized EffectiveHttpClient which uses base address as the key
     /// </summary>
-    /// <typeparam name="T">Type used to identify "same type of connection"</typeparam>
-    public class EffectiveHttpClient<T> : IDisposable
-        where T : class
+    /// <typeparam name="string"></typeparam>
+    public class EffectiveHttpClient : EffectiveHttpClient<string>
     {
         /// <summary>
-        /// Default value factory
+        /// Normalize a uri to a schema+domain+port key
         /// </summary>
-        private static readonly Func<T, HttpClient> DefaultClientFactory = x => new HttpClient();
-
-        /// <summary>
-        /// Http client
-        /// </summary>
-        protected HttpClient client;
-
-        /// <summary>
-        /// Http client manager - singleton
-        /// </summary>
-        protected HttpClientManager<T> manager;
-
-        /// <summary>
-        /// client key
-        /// </summary>
-        public T ClientKey { get; }
-
-        /// <summary>
-        /// Creates a new instance of EffectiveHttpClient
-        /// <param name="clientFactory">factory method to initialize the client</param>
-        /// </summary>
-        public EffectiveHttpClient(T key, Func<T, HttpClient> clientFactory = null)
+        /// <param name="uri">uri</param>
+        /// <returns>string key which can be used to identify unique host</returns>
+        private static string UriToKey(Uri uri)
         {
-            if (key == null)
+            if (uri == null)
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(uri));
             }
 
-            // If valueFactory is not specified, use the default one which creates a default HttpClient w/o special initialization
-            clientFactory = clientFactory ?? EffectiveHttpClient<T>.DefaultClientFactory;
-
-            this.ClientKey = key;
-            this.manager = HttpClientManager<T>.Instance;
-            this.client = this.manager.GetClient(key, clientFactory);
+            // Normalize the schema, domain and port part so that we can ues it as key
+            return $"{uri.Scheme}://{uri.Host.ToLowerInvariant()}:{uri.Port}";
         }
-
-        #region HttpClient proxy methods
 
         /// <summary>
-        /// Get a string from a specified url
+        /// Initializes a new EffectiveHttpClient with the base address, with no special client initialization
         /// </summary>
-        /// <param name="url">the url (absolute or relative)</param>
-        /// <returns>payload as string</returns>
-        public virtual async Task<string> GetStringAsync(string url)
+        /// <param name="baseAddress">base address</param>
+        public EffectiveHttpClient(Uri baseAddress)
+            : base(EffectiveHttpClient.UriToKey(baseAddress), new ClientBuildStrategy(baseAddress))
         {
-            return await this.client.GetStringAsync(url);
         }
-
-        #endregion
-
-        #region IDisposable
 
         /// <summary>
-        /// Dispose the httpclient
+        /// Initializes a new EffectiveHttpClient with a client build strategy
         /// </summary>
-        public void Dispose()
+        /// <param name="strategy">client build strategy</param>
+        public EffectiveHttpClient(ClientBuildStrategy strategy)
+            : base(EffectiveHttpClient.UriToKey(strategy.BaseAddress), strategy)
         {
-            // Do nothing! We keep IDisposable pattern to make the code looks similar as HttpClient sample codes.
-            // Real disposing is done by HttpClientManager.
         }
-
-        #endregion
     }
 }
