@@ -10,7 +10,7 @@ namespace EffectiveHttpClientTest
         [TestMethod]
         public void TestSinletonBehavior()
         {
-            // // Doesn't compile
+            // // This should not compile
             // var manager = new HttpClientManager<string>();
 
             var stringManager = HttpClientManager<string>.Instance;

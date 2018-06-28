@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Net.Http;
 
@@ -11,6 +12,7 @@
     /// while making it easier to manager.
     /// This is a singleton based on type parameter T.
     /// </summary>
+    /// TODO: client life cycle mnagement
     /// TODO: capacity & MUFO/FIFO strategy?
     public class HttpClientManager<T> : IDisposable
         where T: class
@@ -24,7 +26,7 @@
         /// List of available http clients
         /// </summary>
         /// <typeparam name="T">Type used for httpclient lookup</typeparam>
-        protected ConcurrentDictionary<T, HttpClient> clients = new ConcurrentDictionary<T, HttpClient>();
+        protected ConcurrentDictionary<T, Lease<HttpClient>> clients = new ConcurrentDictionary<T, Lease<HttpClient>>();
 
         /// <summary>
         /// The singleton instance
@@ -56,19 +58,25 @@
             }
 
             // Thread safe GetOrAdd
-            return this.clients.GetOrAdd(key, x => clientFactory());
+            var lease = this.clients.GetOrAdd(key, x => this.CreateLease(clientFactory));
+
+            // Lease the client
+            (var client, var count) = lease.Acquire();
+
+            // Todo: do something with the client...
+
+            return client;
         }
 
         /// <summary>
-        /// Remove a client based on the client key. Caller is in charge of disposing the client!
+        /// Create a new HttpClient and establish a lease for it
         /// </summary>
-        /// <param name="key">client key</param>
-        /// <returns>client if exists, otherwise null</returns>
-        public HttpClient RemoveClient(T key)
+        /// <param name="clientFactory">factory method used to create the client</param>
+        /// <returns>a lease wrapper for the client</returns>
+        private Lease<HttpClient> CreateLease(Func<HttpClient> clientFactory)
         {
-            HttpClient client;
-            var ret = this.clients.TryRemove(key, out client);
-            return ret ? client : null;
+            Debug.Assert(clientFactory != null);
+            return new Lease<HttpClient>(clientFactory());
         }
 
         #region IDisposable
@@ -100,7 +108,10 @@
                     // Explicitly dispose all HttpClients we are holding
                     foreach (var kvp in this.clients)
                     {
-                        kvp.Value.Dispose();
+                        (var client, var count) = kvp.Value.Acquire();
+                        // Dispose, regardles whether we have reference or not
+                        Debug.Assert(count == 0);
+                        client.Dispose();
                     }
                 }
             }
