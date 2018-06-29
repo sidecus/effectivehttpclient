@@ -3,17 +3,18 @@
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Net.Http;
 
     /// <summary>
-    /// HttpClientManager which advocates the pattern to reuse HttpClient,
-    /// while making it easier to manager.
+    /// LeasingOffice which manages all leasables.
     /// This is a singleton based on type parameter T.
     /// </summary>
     /// TODO: capacity & MUFO/FIFO strategy?
-    public class HttpClientManager<T> : IDisposable
-        where T: class
+    public class LeasingOffice<TKey, TData> : IDisposable
+        where TKey: class
+        where TData: class, IDisposable
     {
         /// <summary>
         /// Has the object been disposed
@@ -21,54 +22,44 @@
         private bool disposed = false;
 
         /// <summary>
-        /// List of available http clients
+        /// List of available leasables
         /// </summary>
         /// <typeparam name="T">Type used for httpclient lookup</typeparam>
-        protected ConcurrentDictionary<T, HttpClient> clients = new ConcurrentDictionary<T, HttpClient>();
+        protected ConcurrentDictionary<TKey, RenewableLeasable<TData>> leasables = new ConcurrentDictionary<TKey, RenewableLeasable<TData>>();
 
         /// <summary>
         /// The singleton instance
         /// </summary>
         /// <typeparam name="T">Type used for http client lookup</typeparam>
-        public static readonly HttpClientManager<T> Instance = new HttpClientManager<T>();
+        public static readonly LeasingOffice<TKey, TData> Instance = new LeasingOffice<TKey, TData>();
 
         /// <summary>
         /// Protected constructor
         /// </summary>
-        protected HttpClientManager() {}
+        protected LeasingOffice() {}
 
         /// <summary>
-        /// Get a client based off a key of type T
+        /// Get a leasable based off the given key, or create a new leasable
         /// </summary>
         /// <param name="key">the key to reuse</param>
-        /// <param name="valueFactor">factory method to initialize an HttpClient</param>
+        /// <param name="valueFactor">factory method to initialize a new leasable</param>
         /// <returns>An HttpClient</returns>
-        public HttpClient GetClient(T key, Func<HttpClient> clientFactory)
+        public RenewableLeasable<TData> GetLeasable(TKey key, Func<TData> dataFactory)
         {
             if (key == null)
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             }
 
-            if (clientFactory == null)
+            if (dataFactory == null)
             {
-                throw new ArgumentNullException("clientFactory");
+                throw new ArgumentNullException(nameof(dataFactory));
             }
 
             // Thread safe GetOrAdd
-            return this.clients.GetOrAdd(key, x => clientFactory());
-        }
+            var leasable = this.leasables.GetOrAdd(key, x => new RenewableLeasable<TData>(dataFactory()));
 
-        /// <summary>
-        /// Remove a client based on the client key. Caller is in charge of disposing the client!
-        /// </summary>
-        /// <param name="key">client key</param>
-        /// <returns>client if exists, otherwise null</returns>
-        public HttpClient RemoveClient(T key)
-        {
-            HttpClient client;
-            var ret = this.clients.TryRemove(key, out client);
-            return ret ? client : null;
+            return leasable;
         }
 
         #region IDisposable
@@ -83,7 +74,7 @@
         }
 
         /// <summary>
-        /// Internal disposer
+        /// Internal disposer. Disposes all data objects we are holding.
         /// </summary>
         /// <param name="disposing">Called from Dispose</param>
         protected virtual void Dispose(bool disposing)
@@ -95,10 +86,10 @@
 
             if (disposing)
             {
-                if (this.clients != null && this.clients.Count > 0)
+                if (this.leasables != null && this.leasables.Count > 0)
                 {
-                    // Explicitly dispose all HttpClients we are holding
-                    foreach (var kvp in this.clients)
+                    // Explicitly dispose all data objects we are holding
+                    foreach (var kvp in this.leasables)
                     {
                         kvp.Value.Dispose();
                     }

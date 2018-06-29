@@ -1,8 +1,9 @@
 namespace EffectiveHttpClientTest
 {
     using System.Text;
-    using EffectiveHttpClient;
+    using System.Net.Http;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using EffectiveHttpClient;
 
     [TestClass]
     public class HttpClientManagerTest
@@ -10,11 +11,11 @@ namespace EffectiveHttpClientTest
         [TestMethod]
         public void TestSinletonBehavior()
         {
-            // // Doesn't compile
+            // // This should not compile
             // var manager = new HttpClientManager<string>();
 
-            var stringManager = HttpClientManager<string>.Instance;
-            var sbManager = HttpClientManager<StringBuilder>.Instance;
+            var stringManager = LeasingOffice<string, HttpClient>.Instance;
+            var sbManager = LeasingOffice<StringBuilder, HttpClient>.Instance;
 
             // Verify the singleton behavior on specialized generic class
             Assert.AreSame(stringManager, stringManager);

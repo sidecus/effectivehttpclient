@@ -9,7 +9,7 @@ namespace EffectiveHttpClient
     /// <summary>
     /// Http client build strategy. This class provides fluent helper methods to help build HttpClient.
     /// </summary>
-    public class ClientBuildStrategy
+    public class HttpClientBuildStrategy
     {
         /// <summary>
         /// Default value factory
@@ -30,8 +30,8 @@ namespace EffectiveHttpClient
         /// Create a ClientBuildStrategy which does "new HttpClient()" by default
         /// <param name="baseAddress">Uri for the baseAddress, mandatory</param>
         /// </summary>
-        public ClientBuildStrategy(Uri baseAddress)
-            : this (baseAddress, ClientBuildStrategy.DefaultClientFactory)
+        public HttpClientBuildStrategy(Uri baseAddress)
+            : this (baseAddress, HttpClientBuildStrategy.DefaultClientFactory)
         {
         }
 
@@ -40,7 +40,7 @@ namespace EffectiveHttpClient
         /// <param name="baseAddress">Uri for the baseAddress, mandatory</param>
         /// <param name="creationFactory">Factory method to create HttpClient</param>
         /// </summary>
-        public ClientBuildStrategy(Uri baseAddress, Func<HttpClient> creationFactory)
+        public HttpClientBuildStrategy(Uri baseAddress, Func<HttpClient> creationFactory)
         {
             if (baseAddress == null)
             {
@@ -72,7 +72,7 @@ namespace EffectiveHttpClient
         /// </summary>
         /// <param name="headerAction">action to set default headers</param>
         /// <returns>ClientBuildStrategy object</returns>
-        public ClientBuildStrategy UseDefaultHeaders(Action<HttpRequestHeaders> headerAction)
+        public HttpClientBuildStrategy UseDefaultHeaders(Action<HttpRequestHeaders> headerAction)
         {
             if (headerAction == null)
             {

@@ -12,7 +12,7 @@ namespace EffectiveHttpClientTest
     using System.Linq;
 
     [TestClass]
-    public class ClientBuildStrategyTest
+    public class HttpClientBuildStrategyTest
     {
         [TestMethod]
         public void TestClientBuildStrategyConstruction()
@@ -21,7 +21,7 @@ namespace EffectiveHttpClientTest
             var dummyclient = new HttpClient();
 
             // Test strategy with no creation factory
-            var strategy = new ClientBuildStrategy(uri);
+            var strategy = new HttpClientBuildStrategy(uri);
             Assert.IsTrue(strategy.BaseAddress == uri);
             var client = strategy.Build();
             Assert.IsTrue(client is HttpClient);
@@ -29,13 +29,13 @@ namespace EffectiveHttpClientTest
 
             // Test strategy with creation factory
             dummyclient.BaseAddress = new Uri("https://unknown.com");
-            var strategy2 = new ClientBuildStrategy(uri, () => dummyclient);
+            var strategy2 = new HttpClientBuildStrategy(uri, () => dummyclient);
             var client2 = strategy2.Build();
             Assert.IsTrue(client2.BaseAddress == uri);
 
             // Test strategy with UseDefaultHeaders
             dummyclient.BaseAddress = new Uri("https://unknown.com");
-            var strategy3 = new ClientBuildStrategy(uri, () => dummyclient).UseDefaultHeaders(x =>
+            var strategy3 = new HttpClientBuildStrategy(uri, () => dummyclient).UseDefaultHeaders(x =>
             {
                 x.Add("x-custom", "x-custom");
                 x.Authorization = new AuthenticationHeaderValue("Bearer", "token");
