@@ -54,7 +54,7 @@ namespace EffectiveHttpClientTest
         // Proxy class which exposes the HttClient object
         internal class ProxyClass : EffectiveHttpClient
         {
-            public HttpClient HttpClient => this.client;
+            public RenewableLeasable<HttpClient> Client => this.leasableClient;
 
             public ProxyClass(Uri baseAddress) : base(baseAddress) {}
             public ProxyClass(HttpClientBuildStrategy buildStrategy) : base(buildStrategy) {}
@@ -72,11 +72,11 @@ namespace EffectiveHttpClientTest
 
             // client 1 and client2 should share the same client, and have the same key
             Assert.IsTrue(client1.ClientKey == client2.ClientKey);
-            Assert.AreSame(client1.HttpClient, client2.HttpClient);
+            Assert.AreSame(client1.Client, client2.Client);
 
             // client1 and client3 should not share the same client
             Assert.IsFalse(client1.ClientKey == client3.ClientKey);
-            Assert.AreNotSame(client1.HttpClient, client3.HttpClient);
+            Assert.AreNotSame(client1.Client, client3.Client);
         }
 
         [TestMethod]

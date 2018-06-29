@@ -37,14 +37,19 @@ namespace EffectiveHttpClient
         where T : class
     {
         /// <summary>
-        /// Http client
+        /// The client factory
         /// </summary>
-        protected HttpClient client;
+        private Func<HttpClient> clientFactory = null;
 
         /// <summary>
-        /// Http client manager - singleton
+        /// Http client
         /// </summary>
-        protected HttpClientManager<T> manager;
+        protected RenewableLeasable<HttpClient> leasableClient = null;
+
+        /// <summary>
+        /// Http client leasing office - singleton
+        /// </summary>
+        protected LeasingOffice<T, HttpClient> leasingOffice = LeasingOffice<T, HttpClient>.Instance;
 
         /// <summary>
         /// client key
@@ -68,16 +73,11 @@ namespace EffectiveHttpClient
             }
 
             this.ClientKey = key;
-            this.manager = HttpClientManager<T>.Instance;
-            this.client = this.manager.GetClient(key, strategy.Build);
+            this.clientFactory = strategy.Build;
+            this.leasableClient = this.leasingOffice.GetLeasable(key, this.clientFactory);
         }
 
         #region HttpClient proxy properties and methods
-
-        /// <summary>
-        /// Gets the base address
-        /// </summary>
-        public virtual Uri BaseAddress => this.client.BaseAddress;
 
         /// <summary>
         /// Get a string from a specified url
@@ -91,9 +91,11 @@ namespace EffectiveHttpClient
                 throw new ArgumentNullException(nameof(url));
             }
 
-            this.EnsureSameHost(url);
-
-            return await this.client.GetStringAsync(url).ConfigureAwait(false);
+            using (var lease = new AutoRenewLease<HttpClient>(this.leasableClient, this.clientFactory))
+            {
+                this.EnsureSameHost(lease.DataObject.BaseAddress, url);
+                return await lease.DataObject.GetStringAsync(url).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -114,9 +116,11 @@ namespace EffectiveHttpClient
                 throw new ArgumentNullException(nameof(content));
             }
 
-            this.EnsureSameHost(url);
-
-            return await this.client.PostAsync(url, content).ConfigureAwait(false);
+            using (var lease = new AutoRenewLease<HttpClient>(this.leasableClient, this.clientFactory))
+            {
+                this.EnsureSameHost(lease.DataObject.BaseAddress, url);
+                return await lease.DataObject.PostAsync(url, content).ConfigureAwait(false);
+            }
         }
 
         #endregion
@@ -124,20 +128,22 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Verify that the given uri points to the same destination with the client base address
         /// </summary>
+        /// <param name="baseAddress">current base address</param>
         /// <param name="url">destination uri, absolute or relative</param>
-        private void EnsureSameHost(string url)
+        private void EnsureSameHost(Uri baseAddress, string url)
         {
+            Debug.Assert(baseAddress != null);
             Debug.Assert(!string.IsNullOrWhiteSpace(url));
 
             // Construct a new uri using base address. This ensures we can get a valid when url is relative path
-            var uri = new Uri(this.BaseAddress, url);
+            var uri = new Uri(baseAddress, url);
             
             // Do our best - if schema, or host, or domain doesn't match, we throw.
-            if (!string.Equals(uri.Scheme, this.BaseAddress.Scheme, StringComparison.OrdinalIgnoreCase) ||
-                !string.Equals(uri.Host, this.BaseAddress.Host, StringComparison.OrdinalIgnoreCase) ||
-                uri.Port != this.BaseAddress.Port)
+            if (!string.Equals(uri.Scheme, baseAddress.Scheme, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(uri.Host, baseAddress.Host, StringComparison.OrdinalIgnoreCase) ||
+                uri.Port != baseAddress.Port)
             {
-                throw new InvalidOperationException($"{url} points to different host, schema or port from client base address {this.BaseAddress}");
+                throw new InvalidOperationException($"{url} points to different host, schema or port from client base address {baseAddress}");
             }
         }
 
@@ -149,7 +155,7 @@ namespace EffectiveHttpClient
         public void Dispose()
         {
             // Do nothing! We keep IDisposable pattern to make the code looks similar as HttpClient sample codes.
-            // Real disposing is done by HttpClientManager.
+            // Real disposing is done by the client itself in a passive way.
         }
 
         #endregion
