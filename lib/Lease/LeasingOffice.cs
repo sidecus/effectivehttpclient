@@ -11,7 +11,6 @@
     /// LeasingOffice which manages all leasables.
     /// This is a singleton based on type parameter T.
     /// </summary>
-    /// TODO: capacity & MUFO/FIFO strategy?
     public class LeasingOffice<TKey, TData> : IDisposable
         where TKey: class
         where TData: class, IDisposable
@@ -25,7 +24,7 @@
         /// List of available leasables
         /// </summary>
         /// <typeparam name="T">Type used for httpclient lookup</typeparam>
-        protected ConcurrentDictionary<TKey, RenewableLeasable<TData>> leasables = new ConcurrentDictionary<TKey, RenewableLeasable<TData>>();
+        protected ConcurrentDictionary<TKey, AutoRenewLeasable<TData>> leasables = new ConcurrentDictionary<TKey, AutoRenewLeasable<TData>>();
 
         /// <summary>
         /// The singleton instance
@@ -42,22 +41,25 @@
         /// Get a leasable based off the given key, or create a new leasable
         /// </summary>
         /// <param name="key">the key to reuse</param>
-        /// <param name="valueFactor">factory method to initialize a new leasable</param>
-        /// <returns>An HttpClient</returns>
-        public RenewableLeasable<TData> GetLeasable(TKey key, Func<TData> dataFactory)
+        /// <param name="buildStrategy">build strategy to initialize a new leasable</param>
+        /// <returns>An auto renew leasable</returns>
+        public AutoRenewLeasable<TData> GetLeasable(
+            TKey key,
+            IBuildStrategy<TData> buildStrategy,
+            IRenewPolicy<TData> renewPolicy)
         {
             if (key == null)
             {
                 throw new ArgumentNullException(nameof(key));
             }
 
-            if (dataFactory == null)
+            if (buildStrategy == null)
             {
-                throw new ArgumentNullException(nameof(dataFactory));
+                throw new ArgumentNullException(nameof(buildStrategy));
             }
 
             // Thread safe GetOrAdd
-            var leasable = this.leasables.GetOrAdd(key, x => new RenewableLeasable<TData>(dataFactory()));
+            var leasable = this.leasables.GetOrAdd(key, x => new AutoRenewLeasable<TData>(buildStrategy, renewPolicy));
 
             return leasable;
         }

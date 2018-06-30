@@ -37,19 +37,14 @@ namespace EffectiveHttpClient
         where T : class
     {
         /// <summary>
-        /// The client factory
+        /// Http client leasing office - singleton
         /// </summary>
-        private Func<HttpClient> clientFactory = null;
+        protected readonly LeasingOffice<T, HttpClient> leasingOffice = LeasingOffice<T, HttpClient>.Instance;
 
         /// <summary>
         /// Http client
         /// </summary>
-        protected RenewableLeasable<HttpClient> leasableClient = null;
-
-        /// <summary>
-        /// Http client leasing office - singleton
-        /// </summary>
-        protected LeasingOffice<T, HttpClient> leasingOffice = LeasingOffice<T, HttpClient>.Instance;
+        protected AutoLease<HttpClient> clientLease = null;
 
         /// <summary>
         /// client key
@@ -60,21 +55,25 @@ namespace EffectiveHttpClient
         /// Creates a new instance of EffectiveHttpClient
         /// <param name="clientFactory">factory method to initialize the client</param>
         /// </summary>
-        public EffectiveHttpClient(T key, HttpClientBuildStrategy strategy)
+        public EffectiveHttpClient(T key, HttpClientBuildStrategy buildStrategy)
         {
             if (key == null)
             {
                 throw new ArgumentNullException(nameof(key));
             }
 
-            if (strategy == null)
+            if (buildStrategy == null)
             {
-                throw new ArgumentNullException(nameof(strategy));
+                throw new ArgumentNullException(nameof(buildStrategy));
             }
 
             this.ClientKey = key;
-            this.clientFactory = strategy.Build;
-            this.leasableClient = this.leasingOffice.GetLeasable(key, this.clientFactory);
+
+            // Accept different renew policy
+            var leasable = this.leasingOffice.GetLeasable(key, buildStrategy, new HttpClientEagerRenew());
+
+            // Automatically acquire lease
+            this.clientLease = new AutoLease<HttpClient>(leasable);
         }
 
         #region HttpClient proxy properties and methods
@@ -91,11 +90,8 @@ namespace EffectiveHttpClient
                 throw new ArgumentNullException(nameof(url));
             }
 
-            using (var lease = new AutoRenewLease<HttpClient>(this.leasableClient, this.clientFactory))
-            {
-                this.EnsureSameHost(lease.DataObject.BaseAddress, url);
-                return await lease.DataObject.GetStringAsync(url).ConfigureAwait(false);
-            }
+            this.EnsureSameHost(this.clientLease.DataObject.BaseAddress, url);
+            return await (this.clientLease.DataObject.GetStringAsync(url).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -116,11 +112,8 @@ namespace EffectiveHttpClient
                 throw new ArgumentNullException(nameof(content));
             }
 
-            using (var lease = new AutoRenewLease<HttpClient>(this.leasableClient, this.clientFactory))
-            {
-                this.EnsureSameHost(lease.DataObject.BaseAddress, url);
-                return await lease.DataObject.PostAsync(url, content).ConfigureAwait(false);
-            }
+            this.EnsureSameHost(this.clientLease.DataObject.BaseAddress, url);
+            return await this.clientLease.DataObject.PostAsync(url, content).ConfigureAwait(false);
         }
 
         #endregion
@@ -154,8 +147,18 @@ namespace EffectiveHttpClient
         /// </summary>
         public void Dispose()
         {
-            // Do nothing! We keep IDisposable pattern to make the code looks similar as HttpClient sample codes.
-            // Real disposing is done by the client itself in a passive way.
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && this.clientLease != null)
+            {
+                // Release the lease
+                this.clientLease.Dispose();
+                this.clientLease = null;
+            }
         }
 
         #endregion

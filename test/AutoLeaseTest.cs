@@ -7,18 +7,16 @@ namespace EffectiveHttpClientTest
     using EffectiveHttpClient;
 
     [TestClass]
-    public class AutoRenewLeaseTest
+    public class AutoLeaseTest
     {
         [TestMethod]
-        public void TestAutoRenew()
+        public void TestLease()
         {
-            const string Renewed = "renewed";
             const string Acquired = "acquired";
 
             int leaseCount = 0;
-            bool renewed = false;
 
-            var mock = new Mock<IRenewableLeasable<string>>();
+            var mock = new Mock<ILeasable<string>>();
             mock.SetupGet(x => x.LeaseCount).Returns(() => leaseCount);
             mock.Setup(x => x.Acquire())
                 .Returns(() =>
@@ -27,36 +25,32 @@ namespace EffectiveHttpClientTest
                     return Acquired;
                 });
             mock.Setup(x => x.Release()).Returns(() => --leaseCount);
-            mock.Setup(x => x.RenewAndAcquire(It.IsAny<Func<string>>()))
-                .Returns((Func<string> x) =>
-                {
-                    renewed = true;
-                    leaseCount ++;
-                    return x();
-                });
 
-            AutoRenewLease<string> auto;
+            AutoLease<string> auto;
 
-            // not first lease, auto renew lease should just return old value
+            // first lease
+            leaseCount = 0;
+            using (auto = new AutoLease<string>(mock.Object))
+            {
+                Assert.IsTrue(auto.DataObject == Acquired);
+                Assert.IsTrue(leaseCount == 1);
+            }
+            Assert.IsTrue(leaseCount == 0);
+
+            // not first lease
             leaseCount = 100;
-            auto = new AutoRenewLease<string>(mock.Object, () => Acquired);
+            auto = new AutoLease<string>(mock.Object);
             Assert.IsTrue(auto.DataObject == Acquired);
-            Assert.IsFalse(renewed);
             Assert.IsTrue(leaseCount == 101);
 
             // dispose should reduce, but multple dispose doesn't reduce multiple times
             auto.Dispose();
             Assert.IsTrue(leaseCount == 100);
+            Assert.IsTrue(auto.DataObject == null);
             auto.Dispose();
             Assert.IsTrue(leaseCount == 100);
+            Assert.IsTrue(auto.DataObject == null);
 
-            // first lease
-            leaseCount = 0;
-            auto = new AutoRenewLease<string>(mock.Object, () => Renewed);
-            // TODO: Should be false - depending on the strategy
-            Assert.IsTrue(auto.DataObject == Renewed);
-            Assert.IsTrue(renewed);
-            Assert.IsTrue(leaseCount == 1);
         }
     }
 }
