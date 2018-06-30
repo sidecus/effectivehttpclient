@@ -15,16 +15,23 @@ namespace EffectiveHttpClient
         /// </summary>
         /// <param name="baseAddress">base address</param>
         public EffectiveHttpClient(Uri baseAddress)
-            : base(baseAddress.ToString().ToLowerInvariant(), new HttpClientBuildStrategy(baseAddress))
+            : base(
+                baseAddress.ToString().ToLowerInvariant(),
+                new HttpClientBuildStrategy(baseAddress),
+                new HttpClientRenewStrategy())
         {
         }
 
         /// <summary>
         /// Initializes a new EffectiveHttpClient with a client build strategy
         /// </summary>
-        /// <param name="strategy">client build strategy</param>
-        public EffectiveHttpClient(HttpClientBuildStrategy strategy)
-            : base(strategy.BaseAddress.ToString().ToLowerInvariant(), strategy)
+        /// <param name="buildStrategy">client build strategy</param>
+        /// <param name="renewStrategy">client renew strategy</param>
+        public EffectiveHttpClient(HttpClientBuildStrategy buildStrategy, HttpClientRenewStrategy renewStrategy)
+            : base(
+                buildStrategy.BaseAddress.ToString().ToLowerInvariant(),
+                buildStrategy,
+                renewStrategy)
         {
         }
     }
@@ -39,12 +46,17 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Http client leasing office - singleton
         /// </summary>
-        protected readonly LeasingOffice<T, HttpClient> leasingOffice = LeasingOffice<T, HttpClient>.Instance;
+        protected readonly LeasingOffice<T, RenewableHttpClient> leasingOffice = LeasingOffice<T, RenewableHttpClient>.Instance;
 
         /// <summary>
         /// Http client
         /// </summary>
-        protected AutoLease<HttpClient> clientLease = null;
+        protected AutoLease<RenewableHttpClient> clientLease = null;
+
+        /// <summary>
+        /// get the http client
+        /// </summary>
+        protected HttpClient httpClient => this.clientLease?.DataObject.Client;
 
         /// <summary>
         /// client key
@@ -53,9 +65,13 @@ namespace EffectiveHttpClient
 
         /// <summary>
         /// Creates a new instance of EffectiveHttpClient
-        /// <param name="clientFactory">factory method to initialize the client</param>
+        /// <param name="buildStrategy">build strategy to initialize the client</param>
+        /// <param name="renewStrategy">renew strategy to renew the client</param>
         /// </summary>
-        public EffectiveHttpClient(T key, HttpClientBuildStrategy buildStrategy)
+        public EffectiveHttpClient(
+            T key,
+            HttpClientBuildStrategy buildStrategy,
+            HttpClientRenewStrategy renewStrategy)
         {
             if (key == null)
             {
@@ -70,10 +86,10 @@ namespace EffectiveHttpClient
             this.ClientKey = key;
 
             // Accept different renew policy
-            var leasable = this.leasingOffice.GetLeasable(key, buildStrategy, new HttpClientEagerRenew());
+            var leasable = this.leasingOffice.GetLeasable(key, buildStrategy, renewStrategy);
 
             // Automatically acquire lease
-            this.clientLease = new AutoLease<HttpClient>(leasable);
+            this.clientLease = new AutoLease<RenewableHttpClient>(leasable);
         }
 
         #region HttpClient proxy properties and methods
@@ -90,8 +106,8 @@ namespace EffectiveHttpClient
                 throw new ArgumentNullException(nameof(url));
             }
 
-            this.EnsureSameHost(this.clientLease.DataObject.BaseAddress, url);
-            return await (this.clientLease.DataObject.GetStringAsync(url).ConfigureAwait(false));
+            this.EnsureSameHost(this.httpClient.BaseAddress, url);
+            return await this.httpClient.GetStringAsync(url).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -112,8 +128,8 @@ namespace EffectiveHttpClient
                 throw new ArgumentNullException(nameof(content));
             }
 
-            this.EnsureSameHost(this.clientLease.DataObject.BaseAddress, url);
-            return await this.clientLease.DataObject.PostAsync(url, content).ConfigureAwait(false);
+            this.EnsureSameHost(this.httpClient.BaseAddress, url);
+            return await this.httpClient.PostAsync(url, content).ConfigureAwait(false);
         }
 
         #endregion

@@ -9,13 +9,8 @@ namespace EffectiveHttpClient
     /// <summary>
     /// Http client build strategy. This class provides fluent helper methods to help build HttpClient.
     /// </summary>
-    public class HttpClientBuildStrategy : IBuildStrategy<HttpClient>
+    public class HttpClientBuildStrategy : IBuildStrategy<RenewableHttpClient>
     {
-        /// <summary>
-        /// Default value factory
-        /// </summary>
-        private static readonly Func<HttpClient> DefaultClientFactory = () => new HttpClient();
-
         /// <summary>
         /// Reference to the base address
         /// </summary>
@@ -31,7 +26,7 @@ namespace EffectiveHttpClient
         /// <param name="baseAddress">Uri for the baseAddress, mandatory</param>
         /// </summary>
         public HttpClientBuildStrategy(Uri baseAddress)
-            : this (baseAddress, HttpClientBuildStrategy.DefaultClientFactory)
+            : this (baseAddress, () => new HttpClient())
         {
         }
 
@@ -94,8 +89,8 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Use the current strategy to build the client
         /// </summary>
-        /// <returns>Http client object</returns>
-        public HttpClient Build()
+        /// <returns>Http client object wrapped with RenewableHttpClient</returns>
+        public RenewableHttpClient Build()
         {
             HttpClient client = null;
             foreach (var factoryMethod in this.factoryChain)
@@ -103,7 +98,8 @@ namespace EffectiveHttpClient
                 client = factoryMethod(client);
             }
 
-            return client;
+            // Wrap the result with RenewableHttpClient
+            return new RenewableHttpClient(client);
         }
     }
 }

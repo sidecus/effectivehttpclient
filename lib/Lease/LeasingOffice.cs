@@ -13,7 +13,7 @@
     /// </summary>
     public class LeasingOffice<TKey, TData> : IDisposable
         where TKey: class
-        where TData: class, IDisposable
+        where TData: class, IRenewable
     {
         /// <summary>
         /// Has the object been disposed
@@ -46,7 +46,7 @@
         public AutoRenewLeasable<TData> GetLeasable(
             TKey key,
             IBuildStrategy<TData> buildStrategy,
-            IRenewPolicy<TData> renewPolicy)
+            IRenewStrategy<TData> renewStrategy)
         {
             if (key == null)
             {
@@ -59,7 +59,7 @@
             }
 
             // Thread safe GetOrAdd
-            var leasable = this.leasables.GetOrAdd(key, x => new AutoRenewLeasable<TData>(buildStrategy, renewPolicy));
+            var leasable = this.leasables.GetOrAdd(key, x => new AutoRenewLeasable<TData>(buildStrategy, renewStrategy));
 
             return leasable;
         }
@@ -67,7 +67,7 @@
         #region IDisposable
 
         /// <summary>
-        /// Dispose the httpclient
+        /// Dispose the leasing office. This will distroy all httpclients under the management
         /// </summary>
         public void Dispose()
         {

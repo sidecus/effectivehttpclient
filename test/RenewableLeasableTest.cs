@@ -7,62 +7,91 @@ namespace EffectiveHttpClientTest
     using Moq;
     using EffectiveHttpClient;
 
+    public class RenewableMock : IRenewable
+    {
+        public DateTime CreationTime => DateTime.UtcNow;
+        public int ErrorCount => 1;
+        public void Dispose() {}
+    }
+
     [TestClass]
     public class RenewableLeasableTest
     {
         [TestMethod]
-        public async Task TestAutoRenewLeasableBehavior()
+        public void TestConstructorThrowsOnNullArguments()
         {
-            Assert.ThrowsException<ArgumentNullException>(() => new AutoRenewLeasable<HttpClient>(null as IBuildStrategy<HttpClient>, null as IRenewPolicy<HttpClient>));
+            Assert.ThrowsException<ArgumentNullException>(() => new AutoRenewLeasable<RenewableMock>(
+                null as IBuildStrategy<RenewableMock>,
+                null as IRenewStrategy<RenewableMock>));
+        }
 
-            var mockBuildStrategy = new Mock<IBuildStrategy<HttpClient>>();
-            var mockRenewPolicy = new Mock<IRenewPolicy<HttpClient>>();
+        [TestMethod]
+        public void TestBasicAcquireReleaseAndRenew()
+        {
+            var mockBuildStrategy = new Mock<IBuildStrategy<RenewableMock>>();
+            var mockRenewPolicy = new Mock<IRenewStrategy<RenewableMock>>();
 
-            var dataObj = new HttpClient();
-            int buildCount = 0;
-            int renewCheckCount = 0;
-            mockBuildStrategy.Setup(x => x.Build()).Returns(() =>
-            {
-                buildCount ++;
-                return dataObj;
-            });
-            mockRenewPolicy.Setup(x => x.ShallRenew(It.IsAny<HttpClient>())).Returns((HttpClient x) =>
-            {
-                renewCheckCount ++;
-                return renewCheckCount % 2 == 0;
-            });
+            var dataObj = new RenewableMock();
+            bool shouldRenew = false;
+            mockBuildStrategy.Setup(x => x.Build()).Returns(() => dataObj);
+            mockRenewPolicy
+                .Setup(x => x.ShallRenew(It.IsAny<RenewableMock>()))
+                .Returns((RenewableMock x) => shouldRenew);
 
-            var leasable = new AutoRenewLeasable<HttpClient>(mockBuildStrategy.Object, mockRenewPolicy.Object);
-            HttpClient ret = null;
+            var leasable = new AutoRenewLeasable<RenewableMock>(mockBuildStrategy.Object, mockRenewPolicy.Object);
+            RenewableMock ret = null;
 
-            // first acquire and release
-            Assert.IsTrue(buildCount == 0);
-            Assert.IsTrue(renewCheckCount == 0);
+            // acquire and release, should return dataObj
             ret = leasable.Acquire();
             Assert.AreSame(dataObj, ret);
+            mockBuildStrategy.Verify(x => x.Build(), Times.Once);
             Assert.IsTrue(leasable.LeaseCount == 1);
-            Assert.IsTrue(buildCount == 1);
             leasable.Release();
-            Assert.IsTrue(leasable.LeaseCount == 0);
-            Assert.IsTrue(renewCheckCount == 1);
+            mockRenewPolicy.Verify(x => x.ShallRenew(It.Is((RenewableMock y) => y == dataObj)), Times.Once);
 
-            // acquire and release again
-            leasable.Acquire();
-            Assert.IsTrue(buildCount == 1);
-            leasable.Release();
-            Assert.IsTrue(leasable.LeaseCount == 0);
-            Assert.IsTrue(renewCheckCount == 2);
-
-            // again - we should trigger renew
-            leasable.Acquire();
+            // mark object as should renew, and acquire/release again
+            shouldRenew = true;
+            ret = leasable.Acquire();
+            Assert.AreSame(dataObj, ret);
+            mockBuildStrategy.Verify(x => x.Build(), Times.Once);
             Assert.IsTrue(leasable.LeaseCount == 1);
-            Assert.IsTrue(buildCount == 2);
             leasable.Release();
-            Assert.IsTrue(renewCheckCount == 3);
+            mockRenewPolicy.Verify(x => x.ShallRenew(It.Is((RenewableMock y) => y == dataObj)), Times.Exactly(2));
+
+            // Now renew should happen
+            ret = leasable.Acquire();
+            mockBuildStrategy.Verify(x => x.Build(), Times.Exactly(2));
+            Assert.IsTrue(leasable.LeaseCount == 1);
+
+            // An embeded acquire/release doesn't trigger renew
+            var ret2 = leasable.Acquire();
+            mockBuildStrategy.Verify(x => x.Build(), Times.Exactly(2));
+            Assert.IsTrue(leasable.LeaseCount == 2);
+            leasable.Release();
+            Assert.IsTrue(leasable.LeaseCount == 1);
+            mockRenewPolicy.Verify(x => x.ShallRenew(It.Is((RenewableMock y) => y == dataObj)), Times.Exactly(2));
+
+            // outer release triggers check
+            leasable.Release();
+            mockRenewPolicy.Verify(x => x.ShallRenew(It.Is((RenewableMock y) => y == dataObj)), Times.Exactly(3));
+        }
+
+        [TestMethod]
+        public async Task TestMultiThread()
+        {
+            var mockBuildStrategy = new Mock<IBuildStrategy<RenewableMock>>();
+            var mockRenewPolicy = new Mock<IRenewStrategy<RenewableMock>>();
+
+            var dataObj = new RenewableMock();
+            int renewCount = 0;
+            mockBuildStrategy.Setup(x => x.Build()).Returns(() => dataObj);
+            mockRenewPolicy
+                .Setup(x => x.ShallRenew(It.IsAny<RenewableMock>()))
+                .Returns((RenewableMock x) => ++ renewCount % 3 == 0);
+
+            var leasable = new AutoRenewLeasable<RenewableMock>(mockBuildStrategy.Object, mockRenewPolicy.Object);
 
             // Multi thread acquire/release should not cause incorrect couter issues
-            buildCount = 0;
-            renewCheckCount = 0;
             Action<int> execute = (int upper) =>
             {
                 for (int i = 0; i < upper; i++)

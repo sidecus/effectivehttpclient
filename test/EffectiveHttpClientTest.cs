@@ -37,7 +37,7 @@ namespace EffectiveHttpClientTest
                 });
 
             // Using is not needed, but you can still use it without having to worry about anything
-            using (var httpbinClient = new EffectiveHttpClient(buildStrategy))
+            using (var httpbinClient = new EffectiveHttpClient(buildStrategy, new HttpClientRenewStrategy()))
             {
                 var payload = "testdata";
                 var content = new StringContent(payload, Encoding.UTF8);
@@ -54,10 +54,9 @@ namespace EffectiveHttpClientTest
         // Proxy class which exposes the HttClient object
         internal class ProxyClass : EffectiveHttpClient
         {
-            public AutoLease<HttpClient> Client => this.clientLease;
+            public HttpClient HttpClient => this.clientLease.DataObject.Client;
 
             public ProxyClass(Uri baseAddress) : base(baseAddress) {}
-            public ProxyClass(HttpClientBuildStrategy buildStrategy) : base(buildStrategy) {}
         }
 
         [TestMethod]
@@ -72,11 +71,11 @@ namespace EffectiveHttpClientTest
 
             // client 1 and client2 should share the same client, and have the same key
             Assert.IsTrue(client1.ClientKey == client2.ClientKey);
-            Assert.AreSame(client1.Client.DataObject, client2.Client.DataObject);
+            Assert.AreSame(client1.HttpClient, client2.HttpClient);
 
             // client1 and client3 should not share the same client
             Assert.IsFalse(client1.ClientKey == client3.ClientKey);
-            Assert.AreNotSame(client1.Client, client3.Client);
+            Assert.AreNotSame(client1.HttpClient, client3.HttpClient);
         }
 
         [TestMethod]
@@ -87,8 +86,9 @@ namespace EffectiveHttpClientTest
             // since we cannot mock HttpClient.Dispose(non virtual), we mock HttpClient.Dispose(bool) instead.
             var httpClientMock = new Mock<HttpClient>();
             httpClientMock.Protected().Setup("Dispose", It.IsAny<bool>());
-            var strategy = new HttpClientBuildStrategy(new Uri(baseAddress), () => httpClientMock.Object);
-            var client = new EffectiveHttpClient(strategy);
+            var buildStrategy = new HttpClientBuildStrategy(new Uri(baseAddress), () => httpClientMock.Object);
+            var renewStrategy = new HttpClientRenewStrategy();
+            var client = new EffectiveHttpClient(buildStrategy, renewStrategy);
 
             // Call dispose, and make sure HttpClient is not really disposed
             client.Dispose();

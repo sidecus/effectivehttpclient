@@ -14,8 +14,8 @@ namespace EffectiveHttpClientTest
             // // This should not compile
             // var manager = new HttpClientManager<string>();
 
-            var stringManager = LeasingOffice<string, HttpClient>.Instance;
-            var sbManager = LeasingOffice<StringBuilder, HttpClient>.Instance;
+            var stringManager = LeasingOffice<string, RenewableHttpClient>.Instance;
+            var sbManager = LeasingOffice<StringBuilder, RenewableHttpClient>.Instance;
 
             // Verify the singleton behavior on specialized generic class
             Assert.AreSame(stringManager, stringManager);
