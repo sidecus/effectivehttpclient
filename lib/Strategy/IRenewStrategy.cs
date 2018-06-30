@@ -1,10 +1,10 @@
 namespace EffectiveHttpClient
 {
     /// <summary>
-    /// Interface for Renew policy
+    /// Interface for Renew policy. Renew policy 
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public interface IRenewPolicy<T> where T: class
+    /// <typeparam name="T">The renewable object</typeparam>
+    public interface IRenewStrategy<T> where T: class, IRenewable
     {
         /// <summary>
         /// Should we renew now?

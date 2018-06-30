@@ -8,7 +8,7 @@ namespace EffectiveHttpClient
     /// Lease management
     /// </summary>
     /// <typeparam name="T">data object</typeparam>
-    public class AutoRenewLeasable<T> : ILeasable<T>, IDisposable  where T : class, IDisposable
+    public class AutoRenewLeasable<T> : ILeasable<T>, IDisposable  where T : class, IRenewable
     {
         /// <summary>
         /// build strategy
@@ -18,7 +18,7 @@ namespace EffectiveHttpClient
         /// <summary>
         /// renew policy
         /// </summary>
-        private readonly IRenewPolicy<T> renewPolicy = null;
+        private readonly IRenewStrategy<T> renewStrategy = null;
 
         /// <summary>
         /// reference holding the data object
@@ -49,21 +49,21 @@ namespace EffectiveHttpClient
         /// Initializing a new lease with the given data object
         /// </summary>
         /// <param name="buildStrategy">build strategy</param>
-        /// <param name="renewPolicy">build strategy</param>
-        public AutoRenewLeasable(IBuildStrategy<T> buildStrategy, IRenewPolicy<T> renewPolicy)
+        /// <param name="renewStrategy">build strategy</param>
+        public AutoRenewLeasable(IBuildStrategy<T> buildStrategy, IRenewStrategy<T> renewStrategy)
         {
             if (buildStrategy == null)
             {
                 throw new ArgumentNullException(nameof(buildStrategy));
             }
 
-            if (renewPolicy == null)
+            if (renewStrategy == null)
             {
-                throw new ArgumentNullException(nameof(renewPolicy));
+                throw new ArgumentNullException(nameof(renewStrategy));
             }
 
             this.buildStrategy = buildStrategy;
-            this.renewPolicy = renewPolicy;
+            this.renewStrategy = renewStrategy;
         }
 
         /// <summary>
@@ -77,6 +77,7 @@ namespace EffectiveHttpClient
                 // Create the data object if it's not there
                 if (this.dataObject == null)
                 {
+                    Debug.Assert(this.leaseCount == 0);
                     this.dataObject = this.buildStrategy.Build();
                     this.leaseCount = 0;
                 }
@@ -98,10 +99,10 @@ namespace EffectiveHttpClient
             {
                 this.leaseCount --;
 
-                // If there is no active lease, and it's due to renew, destroy the object.
-                // Renew will happen when it's requested again.
-                if (this.leaseCount == 0 && this.renewPolicy.ShallRenew(this.dataObject))
+                if (this.leaseCount == 0 && this.renewStrategy.ShallRenew(this.dataObject))
                 {
+                    // If there is no active lease, and it's due for renew, destroy the object.
+                    // Renew will happen when it's requested again.
                     Debug.Assert(this.dataObject != null);
                     this.DisposeData();
                 }
