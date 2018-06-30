@@ -8,12 +8,17 @@ namespace EffectiveHttpClient
     /// Lease management
     /// </summary>
     /// <typeparam name="T">data object</typeparam>
-    public class RenewableLeasable<T> : IRenewableLeasable<T>, IDisposable  where T : class, IDisposable
+    public class AutoRenewLeasable<T> : ILeasable<T>, IDisposable  where T : class, IDisposable
     {
         /// <summary>
-        /// is this object disposed.
+        /// build strategy
         /// </summary>
-        private bool disposed = false;
+        private readonly IBuildStrategy<T> buildStrategy = null;
+
+        /// <summary>
+        /// renew policy
+        /// </summary>
+        private readonly IRenewPolicy<T> renewPolicy = null;
 
         /// <summary>
         /// reference holding the data object
@@ -28,7 +33,12 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Sync object to gaurantee no multiple recreation
         /// </summary>
-        private Object syncObj;
+        private Object syncObj = new Object();
+
+        /// <summary>
+        /// is this object disposed.
+        /// </summary>
+        private bool disposed = false;
 
         /// <summary>
         /// Getter for lease count
@@ -38,16 +48,22 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Initializing a new lease with the given data object
         /// </summary>
-        /// <param name="dataObject">data object</param>
-        public RenewableLeasable(T dataObject)
+        /// <param name="buildStrategy">build strategy</param>
+        /// <param name="renewPolicy">build strategy</param>
+        public AutoRenewLeasable(IBuildStrategy<T> buildStrategy, IRenewPolicy<T> renewPolicy)
         {
-            if (dataObject == null)
+            if (buildStrategy == null)
             {
-                throw new ArgumentNullException(nameof(dataObject));
+                throw new ArgumentNullException(nameof(buildStrategy));
             }
 
-            this.syncObj = new Object();
-            this.dataObject = dataObject;
+            if (renewPolicy == null)
+            {
+                throw new ArgumentNullException(nameof(renewPolicy));
+            }
+
+            this.buildStrategy = buildStrategy;
+            this.renewPolicy = renewPolicy;
         }
 
         /// <summary>
@@ -58,8 +74,16 @@ namespace EffectiveHttpClient
         {
             lock (this.syncObj)
             {
+                // Create the data object if it's not there
+                if (this.dataObject == null)
+                {
+                    this.dataObject = this.buildStrategy.Build();
+                    this.leaseCount = 0;
+                }
+
                 this.leaseCount ++;
             }
+
             return this.dataObject;
         }
 
@@ -68,54 +92,22 @@ namespace EffectiveHttpClient
         /// </summary>
         public int Release()
         {
+            Debug.Assert(this.leaseCount > 0);
+            
             lock (this.syncObj)
             {
                 this.leaseCount --;
-            }
 
-            return this.leaseCount;
-        }
-
-        /// <summary>
-        /// Recreate the lease and acquire - thread safe.
-        /// No gauranee to really recreate. Data object might be "stale" if there is racing condition.
-        /// </summary>
-        /// <param name="dataFactory">data Factory</param>
-        /// <returns>acquired data object and lease count</returns>
-        public T RenewAndAcquire(Func<T> dataFactory)
-        {
-            if (dataFactory == null)
-            {
-                throw new ArgumentNullException(nameof(dataFactory));
-            }
-
-            var renewed = false;
-
-            // Try to recreate
-            if (this.leaseCount == 0)
-            {
-                lock(this.syncObj)
+                // If there is no active lease, and it's due to renew, destroy the object.
+                // Renew will happen when it's requested again.
+                if (this.leaseCount == 0 && this.renewPolicy.ShallRenew(this.dataObject))
                 {
-                    if (this.leaseCount == 0)
-                    {
-                        // Dispose the data first
-                        this.DisposeData();
-
-                        // Create new data for lease
-                        this.dataObject = dataFactory();
-                        this.leaseCount = 0;
-                        renewed = true;
-                    }
+                    Debug.Assert(this.dataObject != null);
+                    this.DisposeData();
                 }
             }
 
-            if (!renewed)
-            {
-                Trace.WriteLine("RenewAndAcquire could not renew. Returned data might be 'stale'.");
-            }
-
-            // Acquire regardless it's renewed or not
-            return this.Acquire();
+            return this.leaseCount;
         }
 
         /// <summary>
@@ -126,6 +118,8 @@ namespace EffectiveHttpClient
             if (this.dataObject != null)
             {
                 this.dataObject.Dispose();
+                this.dataObject = null;
+                this.leaseCount = 0;
             }
         }
 

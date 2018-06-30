@@ -6,14 +6,8 @@ namespace EffectiveHttpClient
     /// Interface for renewable leasable object
     /// </summary>
     /// <typeparam name="T">type object</typeparam>
-    public interface IRenewableLeasable<T> where T : class
+    public interface ILeasable<T> where T : class
     {
-        /// <summary>
-        /// Recreate and acquire lease
-        /// </summary>
-        /// <returns>recreate and acquire new lease</returns>
-        T RenewAndAcquire(Func<T> dataFactory);
-
         /// <summary>
         /// Acquire lease
         /// </summary>

@@ -4,48 +4,77 @@ namespace EffectiveHttpClientTest
     using System.Net.Http;
     using System.Threading.Tasks;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using Moq;
     using EffectiveHttpClient;
 
     [TestClass]
     public class RenewableLeasableTest
     {
         [TestMethod]
-        public async Task TestRenewableLeasableBehavior()
+        public async Task TestAutoRenewLeasableBehavior()
         {
-            Assert.ThrowsException<ArgumentNullException>(() => new RenewableLeasable<HttpClient>(null as HttpClient));
+            Assert.ThrowsException<ArgumentNullException>(() => new AutoRenewLeasable<HttpClient>(null as IBuildStrategy<HttpClient>, null as IRenewPolicy<HttpClient>));
+
+            var mockBuildStrategy = new Mock<IBuildStrategy<HttpClient>>();
+            var mockRenewPolicy = new Mock<IRenewPolicy<HttpClient>>();
 
             var dataObj = new HttpClient();
-            var leasable = new RenewableLeasable<HttpClient>(dataObj);
-            HttpClient ret = null;
-            int count = 0;
+            int buildCount = 0;
+            int renewCheckCount = 0;
+            mockBuildStrategy.Setup(x => x.Build()).Returns(() =>
+            {
+                buildCount ++;
+                return dataObj;
+            });
+            mockRenewPolicy.Setup(x => x.ShallRenew(It.IsAny<HttpClient>())).Returns((HttpClient x) =>
+            {
+                renewCheckCount ++;
+                return renewCheckCount % 2 == 0;
+            });
 
-            // Normal acquire
-            Assert.IsTrue(count == 0);
+            var leasable = new AutoRenewLeasable<HttpClient>(mockBuildStrategy.Object, mockRenewPolicy.Object);
+            HttpClient ret = null;
+
+            // first acquire and release
+            Assert.IsTrue(buildCount == 0);
+            Assert.IsTrue(renewCheckCount == 0);
             ret = leasable.Acquire();
             Assert.AreSame(dataObj, ret);
             Assert.IsTrue(leasable.LeaseCount == 1);
-            count = leasable.Release();
-            Assert.IsTrue(count == 0);
+            Assert.IsTrue(buildCount == 1);
+            leasable.Release();
+            Assert.IsTrue(leasable.LeaseCount == 0);
+            Assert.IsTrue(renewCheckCount == 1);
 
-            // Renew and acquire. Single threaded so no danger of not being able to renew.
-            ret = leasable.RenewAndAcquire(() => new HttpClient());
-            Assert.AreNotSame(dataObj, ret);
+            // acquire and release again
+            leasable.Acquire();
+            Assert.IsTrue(buildCount == 1);
+            leasable.Release();
+            Assert.IsTrue(leasable.LeaseCount == 0);
+            Assert.IsTrue(renewCheckCount == 2);
+
+            // again - we should trigger renew
+            leasable.Acquire();
             Assert.IsTrue(leasable.LeaseCount == 1);
-            count = leasable.Release();
-            Assert.IsTrue(count == 0);
+            Assert.IsTrue(buildCount == 2);
+            leasable.Release();
+            Assert.IsTrue(renewCheckCount == 3);
 
+            // Multi thread acquire/release should not cause incorrect couter issues
+            buildCount = 0;
+            renewCheckCount = 0;
             Action<int> execute = (int upper) =>
             {
                 for (int i = 0; i < upper; i++)
                 {
-                    var test = i % 5 == 0 ? leasable.Acquire() : leasable.RenewAndAcquire(() => new HttpClient());
+                    leasable.Acquire();
                     leasable.Release();
                 }
             };
             await Task.WhenAll(
-                Task.Run(() => execute(10)),
-                Task.Run(() => execute(20)),
-                Task.Run(() => execute(30)));
+                Task.Run(() => execute(5)),
+                Task.Run(() => execute(7)),
+                Task.Run(() => execute(3)));
             Assert.IsTrue(leasable.LeaseCount == 0);
         }
     }

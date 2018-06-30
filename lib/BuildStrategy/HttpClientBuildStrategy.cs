@@ -9,7 +9,7 @@ namespace EffectiveHttpClient
     /// <summary>
     /// Http client build strategy. This class provides fluent helper methods to help build HttpClient.
     /// </summary>
-    public class HttpClientBuildStrategy
+    public class HttpClientBuildStrategy : IBuildStrategy<HttpClient>
     {
         /// <summary>
         /// Default value factory
