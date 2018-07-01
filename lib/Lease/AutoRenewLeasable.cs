@@ -18,7 +18,7 @@ namespace EffectiveHttpClient
         /// <summary>
         /// renew policy
         /// </summary>
-        private readonly IRenewStrategy<T> renewStrategy = null;
+        private readonly IRenewStrategy renewStrategy = null;
 
         /// <summary>
         /// reference holding the data object
@@ -36,11 +36,6 @@ namespace EffectiveHttpClient
         private Object syncObj = new Object();
 
         /// <summary>
-        /// is this object disposed.
-        /// </summary>
-        private bool disposed = false;
-
-        /// <summary>
         /// Getter for lease count
         /// </summary>
         public int LeaseCount => this.leaseCount;
@@ -50,7 +45,7 @@ namespace EffectiveHttpClient
         /// </summary>
         /// <param name="buildStrategy">build strategy</param>
         /// <param name="renewStrategy">build strategy</param>
-        public AutoRenewLeasable(IBuildStrategy<T> buildStrategy, IRenewStrategy<T> renewStrategy)
+        public AutoRenewLeasable(IBuildStrategy<T> buildStrategy, IRenewStrategy renewStrategy)
         {
             if (buildStrategy == null)
             {
@@ -127,7 +122,7 @@ namespace EffectiveHttpClient
         #region IDisposable
 
         /// <summary>
-        /// Dispose the httpclient
+        /// Dispose the data we hold
         /// </summary>
         public void Dispose()
         {
@@ -141,17 +136,11 @@ namespace EffectiveHttpClient
         /// <param name="disposing">Called from Dispose</param>
         protected virtual void Dispose(bool disposing)
         {
-            if (this.disposed)
+            if (disposing && this.dataObject != null)
             {
-                return;
-            }
-
-            if (disposing)
-            {
+                // Called from Dispose, dispose realy
                 this.DisposeData();
             }
-
-            this.disposed = true;
         }
 
         #endregion

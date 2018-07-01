@@ -6,7 +6,7 @@ namespace EffectiveHttpClient
     /// <summary>
     /// Eager renew policy. Returns true whenever being asked
     /// </summary>
-    public class HttpClientRenewStrategy : IRenewStrategy<RenewableHttpClient>
+    public class RenewStrategy : IRenewStrategy
     {
         /// <summary>
         /// Chain of factory methods which will be used to initialize an HttpClient
@@ -14,9 +14,9 @@ namespace EffectiveHttpClient
         private IList<Predicate<IRenewable>> predicateChain = new List<Predicate<IRenewable>>();
 
         /// <summary>
-        /// Initializes a new HttpClientRenewStrategy
+        /// Initializes a new RenewStrategy
         /// </summary>
-        public HttpClientRenewStrategy()
+        public RenewStrategy()
         {
         }
 
@@ -24,7 +24,7 @@ namespace EffectiveHttpClient
         /// Should the renewable be renewed
         /// </summary>
         /// <returns>true if yes</returns>
-        public bool ShallRenew(RenewableHttpClient renewable)
+        public virtual bool ShallRenew(IRenewable renewable)
         {
             if (this.predicateChain.Count == 0)
             {
@@ -48,12 +48,11 @@ namespace EffectiveHttpClient
         /// Use age strategy. Object needs to be renewed if it's age it's older than ageLimit
         /// </summary>
         /// <param name="ageLimit">age limit</param>
-        public HttpClientRenewStrategy UseAgeStrategy(TimeSpan ageLimit)
+        public virtual IRenewStrategy UseAgeStrategy(TimeSpan ageLimit)
         {
             this.predicateChain.Add(x =>
             {
-                var age = DateTime.UtcNow - x.CreationTime;
-                return age > ageLimit;
+                return x.Age >= ageLimit;
             });
 
             return this;
@@ -63,7 +62,7 @@ namespace EffectiveHttpClient
         /// Use error strategy. Object needs to be renewed if it has seen number of errors more than errorLimit
         /// </summary>
         /// <param name="errorLimit">max number of errors</param>
-        public HttpClientRenewStrategy UseErrorStrategy(int errorLimit)
+        public virtual IRenewStrategy UseErrorStrategy(int errorLimit)
         {
             this.predicateChain.Add(x =>
             {

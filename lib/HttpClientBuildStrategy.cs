@@ -87,6 +87,23 @@ namespace EffectiveHttpClient
         }
 
         /// <summary>
+        /// Use default time out for HTTP requests
+        /// </summary>
+        /// <param name="timeout">default timeout</param>
+        /// <returns>HttpClient build strategy</returns>
+        public HttpClientBuildStrategy UseTimeOut(TimeSpan timeout)
+        {
+            Debug.Assert(this.factoryChain != null);
+
+            this.factoryChain.Add(x =>
+            {
+                x.Timeout = timeout; return x;
+            });
+
+            return this;
+        }
+
+        /// <summary>
         /// Use the current strategy to build the client
         /// </summary>
         /// <returns>Http client object wrapped with RenewableHttpClient</returns>
