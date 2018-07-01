@@ -10,7 +10,7 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Creation time of the object
         /// </summary>
-        DateTime CreationTime { get; }
+        TimeSpan Age { get; }
 
         /// <summary>
         /// Total error count so far

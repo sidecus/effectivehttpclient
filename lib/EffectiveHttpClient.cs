@@ -2,6 +2,7 @@ namespace EffectiveHttpClient
 {
     using System;
     using System.Diagnostics;
+    using System.Net;
     using System.Net.Http;
     using System.Threading.Tasks;
 
@@ -18,7 +19,7 @@ namespace EffectiveHttpClient
             : base(
                 baseAddress.ToString().ToLowerInvariant(),
                 new HttpClientBuildStrategy(baseAddress),
-                new HttpClientRenewStrategy())
+                new RenewStrategy())
         {
         }
 
@@ -27,7 +28,7 @@ namespace EffectiveHttpClient
         /// </summary>
         /// <param name="buildStrategy">client build strategy</param>
         /// <param name="renewStrategy">client renew strategy</param>
-        public EffectiveHttpClient(HttpClientBuildStrategy buildStrategy, HttpClientRenewStrategy renewStrategy)
+        public EffectiveHttpClient(HttpClientBuildStrategy buildStrategy, RenewStrategy renewStrategy)
             : base(
                 buildStrategy.BaseAddress.ToString().ToLowerInvariant(),
                 buildStrategy,
@@ -71,7 +72,7 @@ namespace EffectiveHttpClient
         public EffectiveHttpClient(
             T key,
             HttpClientBuildStrategy buildStrategy,
-            HttpClientRenewStrategy renewStrategy)
+            RenewStrategy renewStrategy)
         {
             if (key == null)
             {
@@ -106,8 +107,7 @@ namespace EffectiveHttpClient
                 throw new ArgumentNullException(nameof(url));
             }
 
-            this.EnsureSameHost(this.httpClient.BaseAddress, url);
-            return await this.httpClient.GetStringAsync(url).ConfigureAwait(false);
+            return await this.MakeHttpCall(url, () => this.httpClient.GetStringAsync(url)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -128,11 +128,34 @@ namespace EffectiveHttpClient
                 throw new ArgumentNullException(nameof(content));
             }
 
-            this.EnsureSameHost(this.httpClient.BaseAddress, url);
-            return await this.httpClient.PostAsync(url, content).ConfigureAwait(false);
+            return await this.MakeHttpCall(url, () => this.httpClient.PostAsync(url, content)).ConfigureAwait(false);
         }
 
         #endregion
+
+        /// <summary>
+        /// Wrapper function to make http calls. It checks base address, makes the call, and records error
+        /// </summary>
+        /// <param name="url">target url, absolute or relative</param>
+        /// <param name="func">func to call</param>
+        /// <typeparam name="TReturn">return type, for example HttpResponseMessage</typeparam>
+        /// <returns>returns the result from the http call</returns>
+        private async Task<TReturn> MakeHttpCall<TReturn>(string url, Func<Task<TReturn>> func)
+        {
+            this.EnsureSameHost(this.httpClient.BaseAddress, url);
+
+            try
+            {
+                return await func();
+            }
+            catch(WebException e)
+            {
+                Trace.WriteLine($"Error occured when making call to {url}. {e}");
+                // Call RenewableHttpClient.OnError to increase error count on the client.
+                this.clientLease.DataObject.OnError(e);
+                throw;
+            }
+        }
 
         /// <summary>
         /// Verify that the given uri points to the same destination with the client base address

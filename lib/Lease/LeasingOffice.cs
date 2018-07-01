@@ -16,11 +16,6 @@
         where TData: class, IRenewable
     {
         /// <summary>
-        /// Has the object been disposed
-        /// </summary>
-        private bool disposed = false;
-
-        /// <summary>
         /// List of available leasables
         /// </summary>
         /// <typeparam name="T">Type used for httpclient lookup</typeparam>
@@ -46,7 +41,7 @@
         public AutoRenewLeasable<TData> GetLeasable(
             TKey key,
             IBuildStrategy<TData> buildStrategy,
-            IRenewStrategy<TData> renewStrategy)
+            IRenewStrategy renewStrategy)
         {
             if (key == null)
             {
@@ -81,24 +76,17 @@
         /// <param name="disposing">Called from Dispose</param>
         protected virtual void Dispose(bool disposing)
         {
-            if (this.disposed)
+            // Called from Dispose, dispose realy
+            if (disposing && this.leasables != null && this.leasables.Count > 0)
             {
-                return;
-            }
-
-            if (disposing)
-            {
-                if (this.leasables != null && this.leasables.Count > 0)
+                // Explicitly dispose all data objects we are holding
+                foreach (var kvp in this.leasables)
                 {
-                    // Explicitly dispose all data objects we are holding
-                    foreach (var kvp in this.leasables)
-                    {
-                        kvp.Value.Dispose();
-                    }
+                    kvp.Value.Dispose();
                 }
-            }
 
-            this.disposed = true;
+                this.leasables = null;
+            }
         }
 
         #endregion

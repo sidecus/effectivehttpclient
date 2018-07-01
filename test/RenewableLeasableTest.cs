@@ -7,9 +7,10 @@ namespace EffectiveHttpClientTest
     using Moq;
     using EffectiveHttpClient;
 
+    //TODO: do we need this mock class?
     public class RenewableMock : IRenewable
     {
-        public DateTime CreationTime => DateTime.UtcNow;
+        public TimeSpan Age => new TimeSpan(1, 0, 0);
         public int ErrorCount => 1;
         public void Dispose() {}
     }
@@ -22,14 +23,14 @@ namespace EffectiveHttpClientTest
         {
             Assert.ThrowsException<ArgumentNullException>(() => new AutoRenewLeasable<RenewableMock>(
                 null as IBuildStrategy<RenewableMock>,
-                null as IRenewStrategy<RenewableMock>));
+                null as IRenewStrategy));
         }
 
         [TestMethod]
         public void TestBasicAcquireReleaseAndRenew()
         {
             var mockBuildStrategy = new Mock<IBuildStrategy<RenewableMock>>();
-            var mockRenewPolicy = new Mock<IRenewStrategy<RenewableMock>>();
+            var mockRenewPolicy = new Mock<IRenewStrategy>();
 
             var dataObj = new RenewableMock();
             bool shouldRenew = false;
@@ -80,7 +81,7 @@ namespace EffectiveHttpClientTest
         public async Task TestMultiThread()
         {
             var mockBuildStrategy = new Mock<IBuildStrategy<RenewableMock>>();
-            var mockRenewPolicy = new Mock<IRenewStrategy<RenewableMock>>();
+            var mockRenewPolicy = new Mock<IRenewStrategy>();
 
             var dataObj = new RenewableMock();
             int renewCount = 0;

@@ -12,7 +12,7 @@ namespace EffectiveHttpClient
         /// <summary>
         /// The lease object
         /// </summary>
-        private ILeasable<T> leasable;
+        private ILeasable<T> leasable = null;
 
         /// <summary>
         /// Data object which holds the reference once leased.
@@ -45,6 +45,8 @@ namespace EffectiveHttpClient
         {
             if (this.leasable != null)
             {
+                Debug.Assert(this.DataObject != null);
+                
                 this.leasable.Release();
                 this.leasable = null;
                 this.DataObject = null;

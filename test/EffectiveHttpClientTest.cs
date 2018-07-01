@@ -37,7 +37,7 @@ namespace EffectiveHttpClientTest
                 });
 
             // Using is not needed, but you can still use it without having to worry about anything
-            using (var httpbinClient = new EffectiveHttpClient(buildStrategy, new HttpClientRenewStrategy()))
+            using (var httpbinClient = new EffectiveHttpClient(buildStrategy, new RenewStrategy()))
             {
                 var payload = "testdata";
                 var content = new StringContent(payload, Encoding.UTF8);
@@ -73,9 +73,13 @@ namespace EffectiveHttpClientTest
             Assert.IsTrue(client1.ClientKey == client2.ClientKey);
             Assert.AreSame(client1.HttpClient, client2.HttpClient);
 
-            // client1 and client3 should not share the same client
-            Assert.IsFalse(client1.ClientKey == client3.ClientKey);
+            // client1 and client3 should not share the same client since key is different
+            Assert.IsTrue(client1.ClientKey != client3.ClientKey);
             Assert.AreNotSame(client1.HttpClient, client3.HttpClient);
+
+            client1.Dispose();
+            client2.Dispose();
+            client3.Dispose();
         }
 
         [TestMethod]
@@ -87,7 +91,7 @@ namespace EffectiveHttpClientTest
             var httpClientMock = new Mock<HttpClient>();
             httpClientMock.Protected().Setup("Dispose", It.IsAny<bool>());
             var buildStrategy = new HttpClientBuildStrategy(new Uri(baseAddress), () => httpClientMock.Object);
-            var renewStrategy = new HttpClientRenewStrategy();
+            var renewStrategy = new RenewStrategy();
             var client = new EffectiveHttpClient(buildStrategy, renewStrategy);
 
             // Call dispose, and make sure HttpClient is not really disposed

@@ -1,6 +1,7 @@
 namespace EffectiveHttpClient
 {
     using System;
+    using System.Net;
     using System.Net.Http;
 
     /// <summary>
@@ -9,6 +10,11 @@ namespace EffectiveHttpClient
     public class RenewableHttpClient : IRenewable
     {
         /// <summary>
+        /// Creation time of this object
+        /// </summary>
+        private DateTime CreationTime = DateTime.UtcNow;
+
+        /// <summary>
         /// Gets the http client
         /// </summary>
         public HttpClient Client { get; private set;}
@@ -16,12 +22,12 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Creation Time of the client
         /// </summary>
-        public DateTime CreationTime { get; } = DateTime.UtcNow;
+        public TimeSpan Age => DateTime.UtcNow - this.CreationTime;
 
         /// <summary>
         /// Gets or sets the error count
         /// </summary>
-        public int ErrorCount { get; set; } = 0;
+        public int ErrorCount { get; private set; } = 0;
 
         /// <summary>
         /// Initializes a new instance of RenewableHttpClient
@@ -38,12 +44,34 @@ namespace EffectiveHttpClient
         }
 
         /// <summary>
+        /// Handle error when making http calls
+        /// </summary>
+        /// <param name="e">web exception</param>
+        public void OnError(WebException e)
+        {
+            this.ErrorCount = this.ErrorCount + 1;
+        }
+
+        /// <summary>
         /// Dispose the client
         /// </summary>
         public void Dispose()
         {
-            this.Client.Dispose();
-            this.Client = null;
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// internal dispose
+        /// </summary>
+        /// <param name="disposing">called from disposing</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && this.Client != null)
+            {
+                this.Client.Dispose();
+                this.Client = null;
+            }
         }
     }
 }
