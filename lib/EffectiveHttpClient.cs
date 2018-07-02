@@ -28,7 +28,7 @@ namespace EffectiveHttpClient
         /// </summary>
         /// <param name="buildStrategy">client build strategy</param>
         /// <param name="renewStrategy">client renew strategy</param>
-        public EffectiveHttpClient(HttpClientBuildStrategy buildStrategy, RenewStrategy renewStrategy)
+        public EffectiveHttpClient(HttpClientBuildStrategy buildStrategy, IRenewStrategy renewStrategy)
             : base(
                 buildStrategy.BaseAddress.ToString().ToLowerInvariant(),
                 buildStrategy,
@@ -72,7 +72,7 @@ namespace EffectiveHttpClient
         public EffectiveHttpClient(
             T key,
             HttpClientBuildStrategy buildStrategy,
-            RenewStrategy renewStrategy)
+            IRenewStrategy renewStrategy)
         {
             if (key == null)
             {
@@ -91,6 +91,20 @@ namespace EffectiveHttpClient
 
             // Automatically acquire lease
             this.clientLease = new AutoLease<RenewableHttpClient>(leasable);
+        }
+
+        /// <summary>
+        /// ToString
+        /// </summary>
+        /// <returns>string</returns>
+        public override string ToString()
+        {
+            if (this.leasingOffice == null)
+            {
+                return String.Empty;
+            }
+
+            return $"{this.httpClient.BaseAddress} from:\r\n{this.leasingOffice.ToString()}";
         }
 
         #region HttpClient proxy properties and methods
@@ -182,7 +196,7 @@ namespace EffectiveHttpClient
         #region IDisposable
 
         /// <summary>
-        /// Dispose the httpclient
+        /// Dispose the effectivehttpclient, this release the lease
         /// </summary>
         public void Dispose()
         {
