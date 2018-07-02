@@ -6,6 +6,7 @@
     using System.Diagnostics;
     using System.Linq;
     using System.Net.Http;
+    using System.Text;
 
     /// <summary>
     /// LeasingOffice which manages all leasables.
@@ -16,16 +17,16 @@
         where TData: class, IRenewable
     {
         /// <summary>
-        /// List of available leasables
-        /// </summary>
-        /// <typeparam name="T">Type used for httpclient lookup</typeparam>
-        protected ConcurrentDictionary<TKey, AutoRenewLeasable<TData>> leasables = new ConcurrentDictionary<TKey, AutoRenewLeasable<TData>>();
-
-        /// <summary>
         /// The singleton instance
         /// </summary>
         /// <typeparam name="T">Type used for http client lookup</typeparam>
         public static readonly LeasingOffice<TKey, TData> Instance = new LeasingOffice<TKey, TData>();
+
+        /// <summary>
+        /// List of available leasables
+        /// </summary>
+        /// <typeparam name="T">Type used for httpclient lookup</typeparam>
+        protected ConcurrentDictionary<TKey, AutoRenewLeasable<TData>> leasables = new ConcurrentDictionary<TKey, AutoRenewLeasable<TData>>();
 
         /// <summary>
         /// Protected constructor
@@ -57,6 +58,27 @@
             var leasable = this.leasables.GetOrAdd(key, x => new AutoRenewLeasable<TData>(buildStrategy, renewStrategy));
 
             return leasable;
+        }
+
+        /// <summary>
+        /// ToString
+        /// </summary>
+        /// <returns>string</returns>
+        public override string ToString()
+        {
+            if (this.leasables == null)
+            {
+                return String.Empty;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"    Total {this.leasables.Count} leasables");
+            foreach (var kvp in this.leasables)
+            {
+                sb.AppendLine($"    {kvp.Key}, LeaseCount {kvp.Value.LeaseCount}");
+            }
+
+            return sb.ToString();
         }
 
         #region IDisposable

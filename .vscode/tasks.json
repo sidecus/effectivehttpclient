@@ -5,7 +5,7 @@
     "tasks": [
         {
             "label": "build",
-            "command": "dotnet build ./test",
+            "command": "dotnet build ./samples",
             "type": "shell",
             "group": "build",
             "presentation": {
