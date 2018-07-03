@@ -47,12 +47,12 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Http client leasing office - singleton
         /// </summary>
-        protected readonly LeasingOffice<T, RenewableHttpClient> leasingOffice = LeasingOffice<T, RenewableHttpClient>.Instance;
+        protected readonly LeasingOffice<T, Renewable<HttpClient>> leasingOffice = LeasingOffice<T, Renewable<HttpClient>>.Instance;
 
         /// <summary>
         /// Http client
         /// </summary>
-        protected AutoLease<RenewableHttpClient> clientLease = null;
+        protected AutoLease<Renewable<HttpClient>> clientLease = null;
 
         /// <summary>
         /// get the http client
@@ -90,7 +90,7 @@ namespace EffectiveHttpClient
             var leasable = this.leasingOffice.GetLeasable(key, buildStrategy, renewStrategy);
 
             // Automatically acquire lease
-            this.clientLease = new AutoLease<RenewableHttpClient>(leasable);
+            this.clientLease = new AutoLease<Renewable<HttpClient>>(leasable);
         }
 
         /// <summary>
@@ -165,7 +165,7 @@ namespace EffectiveHttpClient
             catch(WebException e)
             {
                 Trace.WriteLine($"Error occured when making call to {url}. {e}");
-                // Call RenewableHttpClient.OnError to increase error count on the client.
+                // Call Renewable<HttpClient>.OnError to increase error count on the client.
                 this.clientLease.DataObject.OnError(e);
                 throw;
             }

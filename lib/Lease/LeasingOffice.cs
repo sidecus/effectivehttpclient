@@ -54,6 +54,11 @@
                 throw new ArgumentNullException(nameof(buildStrategy));
             }
 
+            if (renewStrategy == null)
+            {
+                throw new ArgumentNullException(nameof(renewStrategy));
+            }
+
             // Thread safe GetOrAdd
             var leasable = this.leasables.GetOrAdd(key, x => new AutoRenewLeasable<TData>(buildStrategy, renewStrategy));
 
@@ -75,7 +80,7 @@
             sb.AppendLine($"    Total {this.leasables.Count} leasables");
             foreach (var kvp in this.leasables)
             {
-                sb.AppendLine($"    {kvp.Key}, LeaseCount {kvp.Value.LeaseCount}");
+                sb.AppendLine($"    {{{kvp.Key}, LeaseCount {kvp.Value.LeaseCount}}}");
             }
 
             return sb.ToString();

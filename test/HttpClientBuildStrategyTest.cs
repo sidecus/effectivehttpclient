@@ -23,7 +23,7 @@ namespace EffectiveHttpClientTest
             var strategy = new HttpClientBuildStrategy(uri);
             Assert.IsTrue(strategy.BaseAddress == uri);
             var client = strategy.Build();
-            Assert.IsTrue(client is RenewableHttpClient);
+            Assert.IsTrue(client is Renewable<HttpClient>);
             Assert.IsTrue(client.Client.BaseAddress == uri);
 
             // Test strategy with creation factory

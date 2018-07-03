@@ -9,7 +9,7 @@ namespace EffectiveHttpClient
     /// <summary>
     /// Http client build strategy. This class provides fluent helper methods to help build HttpClient.
     /// </summary>
-    public class HttpClientBuildStrategy : IBuildStrategy<RenewableHttpClient>
+    public class HttpClientBuildStrategy : IBuildStrategy<Renewable<HttpClient>>
     {
         /// <summary>
         /// Reference to the base address
@@ -106,8 +106,8 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Use the current strategy to build the client
         /// </summary>
-        /// <returns>Http client object wrapped with RenewableHttpClient</returns>
-        public RenewableHttpClient Build()
+        /// <returns>Http client object wrapped with Renewable<HttpClient></returns>
+        public Renewable<HttpClient> Build()
         {
             HttpClient client = null;
             foreach (var factoryMethod in this.factoryChain)
@@ -115,8 +115,8 @@ namespace EffectiveHttpClient
                 client = factoryMethod(client);
             }
 
-            // Wrap the result with RenewableHttpClient
-            return new RenewableHttpClient(client);
+            // Wrap the result with Renewable<HttpClient>
+            return new Renewable<HttpClient>(client);
         }
     }
 }
