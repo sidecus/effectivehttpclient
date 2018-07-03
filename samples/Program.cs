@@ -30,7 +30,7 @@
 
                 // Make the real call
                 var ret = await client.GetStringAsync(url).ConfigureAwait(false);
-                Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} succeeded.");
+                Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} succeeded with {ret.Length} characters.");
                 Console.WriteLine(client.ToString());
             }
         }

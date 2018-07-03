@@ -16,7 +16,7 @@ namespace EffectiveHttpClientTest
     }
 
     [TestClass]
-    public class RenewableLeasableTest
+    public class AutoRenewLeasableTest
     {
         [TestMethod]
         public void TestConstructorThrowsOnNullArguments()

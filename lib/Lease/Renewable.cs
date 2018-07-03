@@ -5,9 +5,9 @@ namespace EffectiveHttpClient
     using System.Net.Http;
 
     /// <summary>
-    /// Specialized EffectiveHttpClient which uses base address as the key
+    /// Renewable which wraps object with IRenewable properties
     /// </summary>
-    public class RenewableHttpClient : IRenewable
+    public class Renewable<T> : IRenewable where T : class, IDisposable
     {
         /// <summary>
         /// Creation time of this object
@@ -15,9 +15,9 @@ namespace EffectiveHttpClient
         private DateTime CreationTime = DateTime.UtcNow;
 
         /// <summary>
-        /// Gets the http client
+        /// Gets the data object
         /// </summary>
-        public HttpClient Client { get; private set;}
+        public T Client { get; private set;}
 
         /// <summary>
         /// Creation Time of the client
@@ -30,10 +30,10 @@ namespace EffectiveHttpClient
         public int ErrorCount { get; private set; } = 0;
 
         /// <summary>
-        /// Initializes a new instance of RenewableHttpClient
+        /// Initializes a new instance of Renewable
         /// </summary>
-        /// <param name="client">the http client</param>
-        public RenewableHttpClient(HttpClient client)
+        /// <param name="client">the client object</param>
+        public Renewable(T client)
         {
             if (client == null)
             {
@@ -47,7 +47,7 @@ namespace EffectiveHttpClient
         /// Handle error when making http calls
         /// </summary>
         /// <param name="e">web exception</param>
-        public void OnError(WebException e)
+        public virtual void OnError(WebException e)
         {
             this.ErrorCount = this.ErrorCount + 1;
         }
