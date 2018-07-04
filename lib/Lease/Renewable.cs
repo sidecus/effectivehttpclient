@@ -25,9 +25,14 @@ namespace EffectiveHttpClient
         public TimeSpan Age => DateTime.UtcNow - this.CreationTime;
 
         /// <summary>
-        /// Gets or sets the error count
+        /// Gets the error count
         /// </summary>
         public int ErrorCount { get; private set; } = 0;
+
+        /// <summary>
+        /// Gets the life time usage count on this object
+        /// </summary>
+        public int UsageCount { get; private set; } = 0;
 
         /// <summary>
         /// Initializes a new instance of Renewable
@@ -49,7 +54,15 @@ namespace EffectiveHttpClient
         /// <param name="e">web exception</param>
         public virtual void OnError(WebException e)
         {
-            this.ErrorCount = this.ErrorCount + 1;
+            this.ErrorCount += 1;
+        }
+
+        /// <summary>
+        /// Increase life time usage count
+        /// </summary>
+        public virtual void OnUse()
+        {
+            this.UsageCount += 1;
         }
 
         /// <summary>

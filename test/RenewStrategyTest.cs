@@ -53,5 +53,15 @@ namespace EffectiveHttpClientTest
 
             Assert.IsTrue(new RenewStrategy().UseErrorStrategy(4).ShallRenew(this.renewable));
         }
+
+        [TestMethod]
+        public void TestUsageStrategy()
+        {
+            this.mock.Setup(x => x.UsageCount).Returns(10);
+
+            Assert.IsFalse(new RenewStrategy().UseUsageStrategy(10).ShallRenew(this.renewable));
+
+            Assert.IsTrue(new RenewStrategy().UseUsageStrategy(9).ShallRenew(this.renewable));
+        }
     }
 }

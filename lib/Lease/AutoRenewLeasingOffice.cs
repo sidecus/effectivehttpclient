@@ -12,7 +12,7 @@
     /// LeasingOffice which manages all leasables.
     /// This is a singleton based on type parameter T.
     /// </summary>
-    public class LeasingOffice<TKey, TData> : IDisposable
+    public class AutoRenewLeasingOffice<TKey, TData> : IDisposable
         where TKey: class
         where TData: class, IRenewable
     {
@@ -20,7 +20,7 @@
         /// The singleton instance
         /// </summary>
         /// <typeparam name="T">Type used for http client lookup</typeparam>
-        public static readonly LeasingOffice<TKey, TData> Instance = new LeasingOffice<TKey, TData>();
+        public static readonly AutoRenewLeasingOffice<TKey, TData> Instance = new AutoRenewLeasingOffice<TKey, TData>();
 
         /// <summary>
         /// List of available leasables
@@ -31,7 +31,7 @@
         /// <summary>
         /// Protected constructor
         /// </summary>
-        protected LeasingOffice() {}
+        protected AutoRenewLeasingOffice() {}
 
         /// <summary>
         /// Get a leasable based off the given key, or create a new leasable
