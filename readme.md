@@ -6,13 +6,13 @@ Here is another read on potential [issues related to DNS](http://byterot.blogspo
 
 It requires a lot of careful thoughts to really use it right.
 
-This repo tries to make it easy to use. At the same time it enforces patterns to avoid the typical HTTPClient gotchas especially in environments with extensive outbound HTTP calls.
+This repo tries to make it easy to use. At the same time it enforces patterns to avoid the typical HttpClient gotchas especially in environments with heavy outbound HTTP calls.
 
 Here are a few principles I tried to follow:
 1. Keep similar interface as HttpClient for ease of use
 2. Automatic lifecycle management with default behaviors and can easily be updated
-3. Encapsulates HttpClient to avoid potential issues, while still leaving enough flexibility
-4. Some new C#/.net core 2 features are used, but try to keep it easy to downgrade to older .Net framework when needed
-5. Utility classes are generic and can be reused as appropriate
+3. Encapsulates HttpClient to avoid potential misuse, while still leaving enough flexibility
+4. Some new C#/.net core 2 features are used however make it easy to update and downgrade to older .Net framework if needed
+5. Utility classes are almost all generic and can be reused as appropriate
 
 This is a project in progress so if you want to help, feel free to send a PR.
