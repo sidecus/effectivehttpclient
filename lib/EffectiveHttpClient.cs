@@ -47,7 +47,7 @@ namespace EffectiveHttpClient
         /// <summary>
         /// Http client leasing office - singleton
         /// </summary>
-        protected readonly LeasingOffice<T, Renewable<HttpClient>> leasingOffice = LeasingOffice<T, Renewable<HttpClient>>.Instance;
+        protected readonly AutoRenewLeasingOffice<T, Renewable<HttpClient>> leasingOffice = AutoRenewLeasingOffice<T, Renewable<HttpClient>>.Instance;
 
         /// <summary>
         /// Http client
@@ -91,6 +91,9 @@ namespace EffectiveHttpClient
 
             // Automatically acquire lease
             this.clientLease = new AutoLease<Renewable<HttpClient>>(leasable);
+
+            // Tell the data object that we used it one more time
+            this.clientLease.DataObject.OnUse();
         }
 
         /// <summary>

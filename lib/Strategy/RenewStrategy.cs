@@ -71,5 +71,19 @@ namespace EffectiveHttpClient
 
             return this;
         }
+
+        /// <summary>
+        /// Use "usage" based strategy. Object needs to be renewed if it's been leased more than usageLimit times
+        /// </summary>
+        /// <param name="usageLimit">max usage till renew</param>
+        public virtual IRenewStrategy UseUsageStrategy(int usageLimit)
+        {
+            this.predicateChain.Add(x =>
+            {
+                return x.UsageCount > usageLimit;
+            });
+
+            return this;
+        }
     }
 }

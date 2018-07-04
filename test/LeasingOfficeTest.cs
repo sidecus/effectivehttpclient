@@ -18,8 +18,8 @@ namespace EffectiveHttpClientTest
             // var manager = new HttpClientManager<string>();
 
             // Verify the singleton behavior on specialized generic class
-            var stringManager = LeasingOffice<string, Renewable<HttpClient>>.Instance;
-            var sbManager = LeasingOffice<StringBuilder, Renewable<HttpClient>>.Instance;
+            var stringManager = AutoRenewLeasingOffice<string, Renewable<HttpClient>>.Instance;
+            var sbManager = AutoRenewLeasingOffice<StringBuilder, Renewable<HttpClient>>.Instance;
             Assert.IsNotNull(stringManager);
             Assert.IsNotNull(sbManager);
             Assert.AreNotSame(stringManager, sbManager);
@@ -28,14 +28,14 @@ namespace EffectiveHttpClientTest
         [TestMethod]
         public void TestGetLeasableBehavior()
         {
-            var manager = LeasingOffice<string, Renewable<MemoryStream>>.Instance;
+            var manager = AutoRenewLeasingOffice<string, Renewable<MemoryStream>>.Instance;
 
             var msMock = new Mock<MemoryStream>();
             var renewableMock = new Mock<Renewable<MemoryStream>>(msMock.Object);
             var renewMock = new Mock<IRenewStrategy>();
             var buildMock = new Mock<IBuildStrategy<Renewable<MemoryStream>>>();
 
-            var leasingOffice = LeasingOffice<string, Renewable<MemoryStream>>.Instance;
+            var leasingOffice = AutoRenewLeasingOffice<string, Renewable<MemoryStream>>.Instance;
 
             // Argument checking
             Assert.ThrowsException<ArgumentNullException>(() => leasingOffice.GetLeasable(null as string, buildMock.Object, renewMock.Object));
